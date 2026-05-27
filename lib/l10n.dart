@@ -6,7 +6,7 @@ class L10n {
   final String lang;
 
   static L10n of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfType<_L10nScope>();
+    final scope = context.dependOnInheritedWidgetOfExactType<_L10nScope>();
     return scope?.l10n ?? L10n('en');
   }
 
