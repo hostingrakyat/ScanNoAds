@@ -61,8 +61,14 @@ jobs:
           # Fail fast with a clear message if the secrets don't match the
           # keystore - otherwise Gradle dies deep inside packageRelease
           # with an opaque "Given final block not properly padded" error.
-          if ! keytool -list -keystore android/app/upload-key.jks -storepass "$STORE_PW" -alias "$ALIAS" >/dev/null 2>&1; then
-            echo "::error::Keystore secrets do not match. Re-run 'Generate Keystore' and update KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD (same value as KEYSTORE_PASSWORD), and KEY_ALIAS exactly as shown in that workflow's summary."
+          # `keytool -certreq` exercises store password, alias existence,
+          # AND key password, so it catches all three classes of mismatch.
+          if ! keytool -certreq -keystore android/app/upload-key.jks \
+              -storepass "$STORE_PW" -keypass "$KEY_PW" -alias "$ALIAS" \
+              >/dev/null 2>/tmp/keytool.err; then
+            echo "::error::Keystore secrets do not match. keytool said:"
+            sed 's/^/::error::  /' /tmp/keytool.err
+            echo "::error::Re-run 'Generate Keystore' and update KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD (same value as KEYSTORE_PASSWORD), and KEY_ALIAS exactly as shown in that workflow's summary."
             exit 1
           fi
           echo "Keystore verified - release signing enabled."
