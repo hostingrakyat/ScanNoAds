@@ -4,6 +4,12 @@ A free, no-ads, no-watermark, offline document scanner for Android. Built with
 Flutter. Part of the **365 Days App Challenge · Day 3** by
 **Ir. Riovan Styx Roring** (Institut Teknologi Kalimantan).
 
+## Download
+
+- **Latest APK (install on Android):** https://github.com/hostingrakyat/ScanNoAds/releases/latest/download/ScanNoAds-release.apk
+- **Latest AAB (Google Play upload):** https://github.com/hostingrakyat/ScanNoAds/releases/latest/download/ScanNoAds-release.aab
+- All builds: https://github.com/hostingrakyat/ScanNoAds/releases
+
 ## Features
 
 - Camera capture with automatic edge detection and document cropping (ML Kit)

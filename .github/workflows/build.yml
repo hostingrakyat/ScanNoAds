@@ -38,17 +38,34 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Decode keystore
+      - name: Decode and verify keystore
         if: ${{ env.KEYSTORE_BASE64 != '' }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-key.jks
+          set -e
+          echo "$KEYSTORE_BASE64" | tr -d ' \r\n\t' | base64 -d > android/app/upload-key.jks
+
+          # Trim any whitespace / newline added by copy-paste before writing
+          # to key.properties - java.util.Properties preserves trailing
+          # whitespace, which silently breaks signing otherwise.
+          STORE_PW="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d ' \r\n\t')"
+          KEY_PW="$(printf '%s' "$KEY_PASSWORD" | tr -d ' \r\n\t')"
+          ALIAS="$(printf '%s' "$KEY_ALIAS" | tr -d ' \r\n\t')"
+
           cat > android/key.properties <<EOF
           storeFile=app/upload-key.jks
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
+          storePassword=$STORE_PW
+          keyAlias=$ALIAS
+          keyPassword=$KEY_PW
           EOF
-          echo "Keystore configured for release signing."
+
+          # Fail fast with a clear message if the secrets don't match the
+          # keystore - otherwise Gradle dies deep inside packageRelease
+          # with an opaque "Given final block not properly padded" error.
+          if ! keytool -list -keystore android/app/upload-key.jks -storepass "$STORE_PW" -alias "$ALIAS" >/dev/null 2>&1; then
+            echo "::error::Keystore secrets do not match. Re-run 'Generate Keystore' and update KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD (same value as KEYSTORE_PASSWORD), and KEY_ALIAS exactly as shown in that workflow's summary."
+            exit 1
+          fi
+          echo "Keystore verified - release signing enabled."
 
       - name: Build APK (release)
         run: flutter build apk --release
