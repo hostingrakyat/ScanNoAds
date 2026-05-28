@@ -38,6 +38,39 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Check signing secrets presence
+        run: |
+          missing=()
+          [ -n "$KEYSTORE_BASE64" ]    || missing+=("KEYSTORE_BASE64")
+          [ -n "$KEYSTORE_PASSWORD" ]  || missing+=("KEYSTORE_PASSWORD")
+          [ -n "$KEY_ALIAS" ]          || missing+=("KEY_ALIAS")
+          [ -n "$KEY_PASSWORD" ]       || missing+=("KEY_PASSWORD")
+          present=$((4 - ${#missing[@]}))
+
+          {
+            echo "## Signing status"
+            echo ""
+            echo "- KEYSTORE_BASE64: $([ -n "$KEYSTORE_BASE64" ] && echo present || echo MISSING)"
+            echo "- KEYSTORE_PASSWORD: $([ -n "$KEYSTORE_PASSWORD" ] && echo present || echo MISSING)"
+            echo "- KEY_ALIAS: $([ -n "$KEY_ALIAS" ] && echo present || echo MISSING)"
+            echo "- KEY_PASSWORD: $([ -n "$KEY_PASSWORD" ] && echo present || echo MISSING)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "All four signing secrets present - build will be release-signed."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "All four secrets present - release signing enabled." >> "$GITHUB_STEP_SUMMARY"
+          elif [ $present -gt 0 ]; then
+            # Partial config is always a mistake - fail loudly so it's
+            # not silently shipped as a debug build.
+            echo "::error::Partial signing config: ${missing[*]} not visible to this job. Verify they exist under Settings -> Secrets and variables -> Actions -> *Repository* secrets (not Environment secrets), exact name match, no typos."
+            exit 1
+          else
+            echo "::warning::No signing secrets set - falling back to DEBUG signing. Run 'Generate Keystore' and add the four repository secrets to release-sign."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**No signing secrets set** - falling back to debug signing. The APK will install for testing but cannot be used on Google Play." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Decode and verify keystore
         if: ${{ env.KEYSTORE_BASE64 != '' }}
         run: |
